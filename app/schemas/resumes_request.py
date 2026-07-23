@@ -9,3 +9,8 @@ class ResumesRequest(BaseModel):
     role_name: str
     skills: list[str]
     uploaded_at: datetime
+
+class AIResumeParserRequest(BaseModel):
+    experience_summary: list[str]
+    skills: list[str]
+

@@ -7,6 +7,7 @@ class Resumes(Document):
     role_name: str
     file_name: str
     raw_text: str
+    experience_summary: list[str]
     skills: list[str]
     uploaded_at: datetime
 

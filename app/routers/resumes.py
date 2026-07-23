@@ -9,28 +9,11 @@ from fastapi import APIRouter, Form, UploadFile, File, HTTPException
 
 from app.models.Resumes import Resumes
 from app.schemas.resumes_request import ResumesRequest
+from app.services.resumes_service import extract_text_from_pdf, extract_skills_from_resume
 
 resumes_router = APIRouter()
 
 
-def extract_text_from_pdf(file_content: bytes):
-    extracted_text = ""
-
-    try:
-        with pdfplumber.open(io.BytesIO(file_content)) as file:
-            for page in file.pages:
-                text = page.extract_text()
-                if text:
-                    extracted_text += text + "\n"
-
-        return extracted_text
-    except Exception as e:
-        raise RuntimeError(f"Error processing PDF: {str(e)}")
-
-
-def extract_skills_from_resume(text_content: str):
-    ## ai skill extractor
-    return []
 
 
 @resumes_router.post("/resumes", response_model=ResumesRequest)
@@ -42,7 +25,7 @@ async def store_resume(role_name: Annotated[str, Form()], file: Annotated[Upload
         file_name = cast(str, file.filename)
         file_content = await file.read()
         text_content = await asyncio.to_thread(extract_text_from_pdf, file_content)
-        skills = extract_skills_from_resume(text_content)
+        ai_parsed_resume = await extract_skills_from_resume(text_content)
 
         existing_resume = await Resumes.find_one(Resumes.role_name == role_name)
 
@@ -50,11 +33,12 @@ async def store_resume(role_name: Annotated[str, Form()], file: Annotated[Upload
             existing_resume.raw_text = text_content
             existing_resume.uploaded_at = datetime.now()
             existing_resume.file_name = file_name
+            existing_resume.experience_summary = ai_parsed_resume.experience_summary
             await existing_resume.save()
             return existing_resume
         else:
-            resumes = Resumes(raw_text=text_content, role_name=role_name, uploaded_at=datetime.now(), skills=skills,
-                              file_name=file_name)
+            resumes = Resumes(raw_text=text_content, role_name=role_name, uploaded_at=datetime.now(), skills=ai_parsed_resume.skills,
+                              file_name=file_name, experience_summary=ai_parsed_resume.experience_summary)
             await resumes.insert()
             return resumes
 
